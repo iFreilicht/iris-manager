@@ -136,17 +136,21 @@ def main():
     with open_iris(current_iris) as active_iris:
         print('Initial data on serial output:')
         print(read_all(active_iris))
+
         print('Info Response:')
         print(get_info(active_iris))
+
         print('Confirm Response:')
         send_signal(active_iris, pb.MessageData.Confirm)
         print(receive_message(active_iris))
+
         print('RequestNext Response:')
         send_signal(active_iris, pb.MessageData.RequestNext)
         try:
             receive_message(active_iris)
         except RuntimeError as ex:
             print(ex.args[0])
+
         print('DownloadConfiguration Response:')
         print(download_configuration(active_iris))
 
