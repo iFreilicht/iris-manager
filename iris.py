@@ -61,11 +61,34 @@ def send_signal(port, signal):
     request.signal = signal
     send_message(port, request)
 
+def is_string_message(byte_string):
+    """Check if bytes are a string message."""
+    # See lib-iris/iris.proto for details
+    return byte_string[0] == 4
+
+def decode_string(byte_string):
+    """Decode string message from byte string."""
+    if not is_string_message(byte_string):
+        raise TypeError('`{}` is not a valid string message!'
+                        .format(byte_string))
+
+    return byte_string[1:].decode('utf-8')
+
 def receive_message(port):
     """Receive message from Arduino and return it."""
     response_bytes = read_all(port)
+
+    # If a string was sent, an error occurred on the Iris
+    # and the string contains error info
+    if is_string_message(response_bytes):
+        raise RuntimeError(decode_string(response_bytes))
+
     response = pb.MessageData()
-    response.ParseFromString(response_bytes)
+    try:
+        response.ParseFromString(response_bytes)
+    except Exception as ex:
+        ex.args = ex.args + (response_bytes,)
+        raise
 
     return response
 
@@ -77,7 +100,7 @@ def get_info(port):
 
     response_bytes = read_all(port)
     # Response will be a byte-string with leading \x04
-    response = response_bytes[1:].decode('utf-8')
+    response = decode_string(response_bytes)
 
     return response
 
@@ -95,7 +118,10 @@ def main():
         print(receive_message(active_iris))
         print('RequestNext Response:')
         send_signal(active_iris, pb.MessageData.RequestNext)
-        print(receive_message(active_iris))
+        try:
+            receive_message(active_iris)
+        except RuntimeError as ex:
+            print(ex.args[0])
 
 if __name__ == "__main__":
     main()
