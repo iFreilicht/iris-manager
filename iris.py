@@ -104,6 +104,31 @@ def get_info(port):
 
     return response
 
+def download_configuration(port):
+    """Download configuration from iris."""
+    configuration = pb.Configuration()
+
+    send_signal(port, pb.MessageData.DownloadConfiguration)
+
+    # In this case, it is required that cues and schedules are sent in-
+    # order. However, we don't care whether cues or schedules are sent
+    # first, and they could be sent interlaced as well
+    while True:
+        response = receive_message(port)
+        if response.HasField('cue'):
+            configuration.all_cues.extend([response.cue])
+
+        elif response.HasField('schedule'):
+            configuration.all_schedules.extend([response.schedule])
+
+        elif response.signal == pb.MessageData.Confirm:
+            return configuration
+
+        else:
+            raise RuntimeError(response)
+
+        send_signal(port, pb.MessageData.RequestNext)
+
 def main():
     """Execute as a script."""
     # Get the first iris that's found
@@ -122,6 +147,8 @@ def main():
             receive_message(active_iris)
         except RuntimeError as ex:
             print(ex.args[0])
+        print('DownloadConfiguration Response:')
+        print(download_configuration(active_iris))
 
 if __name__ == "__main__":
     main()
