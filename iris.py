@@ -24,15 +24,16 @@ def enumerate_irises():
 def open_iris(port_info):
     """Open an iris device for the duration of a with statement."""
     device_name = port_info.device
-    try:
-        # Configure and open serial port
-        serial_port = serial.Serial(port=device_name,
-                                    baudrate=9600,
-                                    timeout=1,
-                                    write_timeout=1)
-        yield serial_port
-    finally:
-        serial_port.close()
+
+    # Configure port without opening it
+    serial_port = serial.Serial(baudrate=9600,
+                                timeout=1,
+                                write_timeout=1)
+    serial_port.port = device_name
+
+    # Open port in context manager
+    with serial_port as open_port:
+        yield open_port
 
 def read_all(port, chunk_size=200):
     """Read all characters on the serial port and return them."""
@@ -77,6 +78,8 @@ def decode_string(byte_string):
 def receive_message(port):
     """Receive message from Arduino and return it."""
     response_bytes = read_all(port)
+
+    print(list(bytearray(response_bytes)))
 
     # If a string was sent, an error occurred on the Iris
     # and the string contains error info
